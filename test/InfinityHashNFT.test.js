@@ -67,5 +67,23 @@ describe("Store", function () {
         token.connect(owner).setNftContract(nft.address)
       ).to.be.revertedWithCustomError(token, "NftContractAlreadySet");
     });
+
+    it("should set URI", async function () {
+      await nft.connect(owner).setURI("https://ipfs.io/ipfs/");
+    });
+
+    it("should not set URI: not owner", async function () {
+      await expect(
+        nft.connect(deployer).setURI("https://scam.com.br/ipfs/")
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+  });
+
+  describe("NFT", function () {
+    it("should not mint NFT: not owner", async function () {
+      await expect(
+        nft.connect(deployer).mint(0, 1000, 111, 100)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
   });
 });
