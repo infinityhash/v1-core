@@ -1,6 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("hardhat-abi-exporter");
-// require("hardhat-docgen");
+require("hardhat-docgen");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -53,6 +53,6 @@ module.exports = {
   docgen: {
     path: "./docs",
     clear: true,
-    runOnCompile: false,
+    runOnCompile: true,
   },
 };
