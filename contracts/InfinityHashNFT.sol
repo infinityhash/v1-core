@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 
-import "./InfinityHashToken.sol";
+import "./InfinityHash.sol";
 
 import "hardhat/console.sol";
 
@@ -16,7 +16,7 @@ import "hardhat/console.sol";
 /// @custom:security-contact security@prexis.io
 contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
     address public immutable stablecoin;
-    address public immutable redeemToken;
+    address public token;
 
     struct Batch {
         uint256 price;
@@ -24,6 +24,9 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
     }
 
     mapping(uint256 => Batch) public batches;
+
+    error ZeroAddress();
+    error TokenAlreadySet(address token);
 
     error ZeroPrice();
     error ZeroSupply();
@@ -49,17 +52,23 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
         uint256 total
     );
 
-    constructor(
-        address _owner,
-        address _stablecoin,
-        address _redeemToken
-    ) ERC1155("") {
+    constructor(address _owner, address _stablecoin) ERC1155("") {
         _transferOwnership(_owner);
         stablecoin = _stablecoin;
-        redeemToken = _redeemToken;
     }
 
     // Externals
+
+    /**
+     * @notice Set the ERC-20 token contract address
+     * @dev Only set once
+     * @param _token The token contract address
+     */
+    function setTokenContract(address _token) external onlyOwner {
+        if (_token == address(0)) revert ZeroAddress();
+        if (token != address(0)) revert TokenAlreadySet(token);
+        token = _token;
+    }
 
     function setURI(string memory newuri) external onlyOwner {
         _setURI(newuri);
@@ -115,13 +124,13 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
     function purchase(uint256 _id, uint256 _qty) external {
         if (!exists(_id)) revert BatchNotExists();
         if (_qty == 0) revert ZeroAmount();
-        
+
         uint256 price = batches[_id].price;
         uint256 total = price * _qty;
 
         IERC20(stablecoin).transferFrom(msg.sender, address(this), total);
 
-        safeTransferFrom(address(this), msg.sender, _id, _qty, "");
+        _safeTransferFrom(owner(), msg.sender, _id, _qty, "");
 
         emit Purchase(msg.sender, _id, _qty, price, total);
     }
@@ -143,7 +152,7 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
      * @return True if any NFT from batch has been sold
      */
     function sold(uint256 _id) public view returns (bool) {
-        return totalSupply(_id) == balanceOf(owner(), _id);
+        return totalSupply(_id) != balanceOf(owner(), _id);
     }
 
     // Internals
