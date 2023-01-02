@@ -7,41 +7,46 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 
+import "./InfinityHashToken.sol";
+
+import "hardhat/console.sol";
+
+/// @title InfinityHash NFT
+/// @author Prëxis Labs
 /// @custom:security-contact security@prexis.io
 contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
     address public immutable stablecoin;
     address public immutable redeemToken;
 
-    struct Token {
+    struct Batch {
         uint256 price;
-        uint256 totalSupply;
         uint256 timelock;
-        uint256 sold;
     }
 
-    mapping(uint256 => Token) private tokens;
+    mapping(uint256 => Batch) public batches;
 
     error ZeroPrice();
     error ZeroSupply();
     error BatchExists();
+    error BatchNotExists();
+    error BatchSold();
 
-    error TokenNotExists();
     error ZeroAmount();
     error TooSoon();
-    error PurchaseTransferFailed();
 
-    event Batch(
-        uint256 indexed id,
+    event Mint(
+        uint256 indexed batchId,
         uint256 price,
         uint256 totalSupply,
         uint256 timelock
     );
 
-    event Buy(
-        address indexed buyer,
-        uint256 indexed id,
-        uint256 amount,
-        uint256 value
+    event Purchase(
+        address indexed purchaser,
+        uint256 indexed batchId,
+        uint256 quantity,
+        uint256 unitPrice,
+        uint256 total
     );
 
     constructor(
@@ -60,6 +65,14 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
         _setURI(newuri);
     }
 
+    /**
+     * @notice Mint a new batch of NFTs
+     * @dev Only new batches allowed, it's not possible to mint more units of an existing batch
+     * @param _id The batch ID
+     * @param _totalSupply The total supply of the batch
+     * @param _timelock The timelock release
+     * @param _price The price of the unit in stablecoin, considering decimals
+     */
     function mint(
         uint256 _id,
         uint256 _totalSupply,
@@ -68,47 +81,69 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
     ) external onlyOwner {
         if (_price == 0) revert ZeroPrice();
         if (_totalSupply == 0) revert ZeroSupply();
-        if (batchExists(_id)) revert BatchExists();
+        if (exists(_id)) revert BatchExists();
 
-        _mint(address(this), _id, _totalSupply, "");
+        _mint(owner(), _id, _totalSupply, "");
 
-        tokens[_id].price = _price;
-        tokens[_id].totalSupply = _totalSupply;
-        tokens[_id].timelock = _timelock;
+        batches[_id].price = _price;
+        batches[_id].timelock = _timelock;
 
-        emit Batch(_id, _price, _totalSupply, _timelock);
+        emit Mint(_id, _price, _totalSupply, _timelock);
     }
 
-    function buy(uint256 _id, uint256 _amount) external {
-        uint256 price = tokens[_id].price;
-        if (price == 0) revert TokenNotExists();
+    /**
+     * @notice Remove a unsold batch of NFTs
+     * @dev Only removes lots that no NFT has been sold
+     * @param _id The batch ID
+     */
+    function removeBatch(uint256 _id) external onlyOwner {
+        if (!exists(_id)) revert BatchNotExists();
+        if (sold(_id)) revert BatchSold();
 
-        if (_amount == 0) revert ZeroAmount();
+        uint256 totalSupply = totalSupply(_id);
 
-        if (tokens[_id].timelock > block.timestamp) revert TooSoon();
+        _burn(owner(), _id, totalSupply);
 
-        uint256 value = price * _amount;
-
-        if (!IERC20(stablecoin).transferFrom(msg.sender, address(this), value))
-            revert PurchaseTransferFailed();
-
-        safeTransferFrom(address(this), msg.sender, _id, _amount, "");
-
-        emit Buy(msg.sender, _id, _amount, value);
+        delete batches[_id];
     }
 
-    // Views
+    /**
+     * @notice Purchase NFTs from a batch
+     * @param _id The batch ID
+     * @param _qty The amount of NFTs to purchase
+     */
+    function purchase(uint256 _id, uint256 _qty) external {
+        if (!exists(_id)) revert BatchNotExists();
+        if (_qty == 0) revert ZeroAmount();
+        
+        uint256 price = batches[_id].price;
+        uint256 total = price * _qty;
 
-    function batchExists(uint256 _id) public view returns (bool) {
-        return tokens[_id].price != 0;
+        IERC20(stablecoin).transferFrom(msg.sender, address(this), total);
+
+        safeTransferFrom(address(this), msg.sender, _id, _qty, "");
+
+        emit Purchase(msg.sender, _id, _qty, price, total);
     }
 
-    function getBatch(
-        uint256 _id
-    ) external view returns (uint256 price, uint256 totalSupply, uint256 timelock) {
-        price = tokens[_id].price;
-        totalSupply = tokens[_id].totalSupply;
-        timelock = tokens[_id].timelock;
+    function redeem(uint256 _id, uint256 _qty) external {
+        if (!exists(_id)) revert BatchNotExists();
+        if (_qty == 0) revert ZeroAmount();
+        if (batches[_id].timelock > block.timestamp) revert TooSoon();
+
+        _burn(msg.sender, _id, _qty);
+
+        // burn NFTs
+        // mint ERC20
+    }
+
+    /**
+     * @notice Checks if any NFT from batch has been sold
+     * @param _id The batch ID
+     * @return True if any NFT from batch has been sold
+     */
+    function sold(uint256 _id) public view returns (bool) {
+        return totalSupply(_id) == balanceOf(owner(), _id);
     }
 
     // Internals
