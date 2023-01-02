@@ -21,6 +21,7 @@
   "function batches(uint256) view returns (uint256, uint256, uint256)",
   "function burn(address,uint256,uint256)",
   "function burnBatch(address,uint256[],uint256[])",
+  "function erc20Transfer(address,address,uint256)",
   "function exists(uint256) view returns (bool)",
   "function isApprovedForAll(address,address) view returns (bool)",
   "function mint(uint256,uint256,uint256,uint256)",

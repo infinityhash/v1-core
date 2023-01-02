@@ -255,5 +255,18 @@ describe("Infinity Hash Project", function () {
         nft.connect(owner).removeBatch(0)
       ).to.be.revertedWithCustomError(nft, "BatchSold");
     });
+
+    it("should withdraw stablecoin", async function () {
+      let ownerBalance = await stable.balanceOf(owner.address);
+      let nftBalance = await stable.balanceOf(nft.address);
+
+      await nft
+        .connect(owner)
+        .erc20Transfer(stable.address, addrs[9].address, nftBalance);
+
+      expect(await stable.balanceOf(addrs[9].address)).to.equal(
+        ownerBalance.add(nftBalance)
+      );
+    });
   });
 });

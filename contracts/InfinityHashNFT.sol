@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
@@ -22,8 +22,11 @@ contract InfinityHashNFT is
     ERC1155Burnable,
     ERC1155Supply
 {
+    using SafeERC20 for IERC20;
+
     address public immutable stablecoin;
     address public token;
+    uint256 public constant tokensToBeMinted = 1000;
 
     struct Batch {
         uint256 price;
@@ -46,10 +49,17 @@ contract InfinityHashNFT is
     error TooSoon();
 
     event Mint(
+        address indexed owner,
         uint256 indexed batchId,
         uint256 price,
         uint256 totalSupply,
         uint256 timelock
+    );
+
+    event Remove(
+        address indexed owner,
+        uint256 indexed batchId,
+        uint256 totalSupply
     );
 
     event Purchase(
@@ -60,12 +70,31 @@ contract InfinityHashNFT is
         uint256 total
     );
 
+    event Redeem(
+        address indexed purchaser,
+        uint256 indexed batchId,
+        uint256 quantity,
+        uint256 total
+    );
+
+    event TransferERC20(
+        address indexed owner,
+        address indexed token,
+        address indexed to,
+        uint256 amount
+    );
+
+    /**
+     * @notice Constructor
+     * @dev Ownership is transferred on deployment time
+     * @dev Stablecoin is set on deployment time only
+     * @param _owner The owner of the contract
+     * @param _stablecoin The stablecoin address
+     */
     constructor(address _owner, address _stablecoin) ERC1155("") {
         _transferOwnership(_owner);
         stablecoin = _stablecoin;
     }
-
-    // Externals
 
     /**
      * @notice Set the ERC-20 token contract address
@@ -110,7 +139,7 @@ contract InfinityHashNFT is
         batches[_id].timelock = _timelock;
         batches[_id].initialSupply = _totalSupply;
 
-        emit Mint(_id, _price, _totalSupply, _timelock);
+        emit Mint(msg.sender, _id, _price, _totalSupply, _timelock);
     }
 
     /**
@@ -128,7 +157,7 @@ contract InfinityHashNFT is
 
         delete batches[_id];
 
-        // emit RemoveBatch(_id, totalSupply);
+        emit Remove(msg.sender, _id, totalSupply);
     }
 
     /**
@@ -143,7 +172,7 @@ contract InfinityHashNFT is
         uint256 price = batches[_id].price;
         uint256 total = price * _qty;
 
-        IERC20(stablecoin).transferFrom(msg.sender, address(this), total);
+        IERC20(stablecoin).safeTransferFrom(msg.sender, address(this), total);
 
         _safeTransferFrom(address(this), msg.sender, _id, _qty, "");
 
@@ -156,13 +185,27 @@ contract InfinityHashNFT is
         if (batches[_id].timelock > block.timestamp) revert TooSoon();
 
         _burn(msg.sender, _id, _qty);
+        uint256 total = _qty * tokensToBeMinted;
 
-        // burn NFTs
-        // mint ERC20
+        InfinityHash(token).mint(msg.sender, total);
+
+        emit Redeem(msg.sender, _id, _qty, total);
     }
 
-    function erc20Transfer(address _to, uint256 _amount) external onlyOwner {
-        IERC20(token).transfer(_to, _amount);
+    /**
+     * @notice Transfer ERC-20 tokens from contract
+     * @param _token The token contract address
+     * @param _to The recipient address
+     * @param _amount The amount to transfer
+     */
+    function erc20Transfer(
+        address _token,
+        address _to,
+        uint256 _amount
+    ) external onlyOwner {
+        IERC20(_token).safeTransfer(_to, _amount);
+
+        emit TransferERC20(msg.sender, _token, _to, _amount);
     }
 
     /**
