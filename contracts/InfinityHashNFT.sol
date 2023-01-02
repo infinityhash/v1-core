@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import "./InfinityHash.sol";
 
@@ -14,7 +15,13 @@ import "hardhat/console.sol";
 /// @title InfinityHash NFT
 /// @author Prëxis Labs
 /// @custom:security-contact security@prexis.io
-contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
+contract InfinityHashNFT is
+    ERC1155,
+    ERC1155Holder,
+    Ownable,
+    ERC1155Burnable,
+    ERC1155Supply
+{
     address public immutable stablecoin;
     address public token;
 
@@ -92,7 +99,7 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
         if (_totalSupply == 0) revert ZeroSupply();
         if (exists(_id)) revert BatchExists();
 
-        _mint(owner(), _id, _totalSupply, "");
+        _mint(address(this), _id, _totalSupply, "");
 
         batches[_id].price = _price;
         batches[_id].timelock = _timelock;
@@ -111,7 +118,7 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
 
         uint256 totalSupply = totalSupply(_id);
 
-        _burn(owner(), _id, totalSupply);
+        _burn(address(this), _id, totalSupply);
 
         delete batches[_id];
     }
@@ -130,7 +137,7 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
 
         IERC20(stablecoin).transferFrom(msg.sender, address(this), total);
 
-        _safeTransferFrom(owner(), msg.sender, _id, _qty, "");
+        _safeTransferFrom(address(this), msg.sender, _id, _qty, "");
 
         emit Purchase(msg.sender, _id, _qty, price, total);
     }
@@ -152,7 +159,7 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
      * @return True if any NFT from batch has been sold
      */
     function sold(uint256 _id) public view returns (bool) {
-        return totalSupply(_id) != balanceOf(owner(), _id);
+        return totalSupply(_id) != balanceOf(address(this), _id);
     }
 
     // Internals
@@ -166,5 +173,11 @@ contract InfinityHashNFT is ERC1155, Ownable, ERC1155Burnable, ERC1155Supply {
         bytes memory data
     ) internal override(ERC1155, ERC1155Supply) {
         super._beforeTokenTransfer(operator, from, to, ids, amounts, data);
+    }
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override(ERC1155, ERC1155Receiver) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 }
