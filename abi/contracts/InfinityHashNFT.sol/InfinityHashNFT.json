@@ -24,6 +24,8 @@
   "function exists(uint256) view returns (bool)",
   "function isApprovedForAll(address,address) view returns (bool)",
   "function mint(uint256,uint256,uint256,uint256)",
+  "function onERC1155BatchReceived(address,address,uint256[],uint256[],bytes) returns (bytes4)",
+  "function onERC1155Received(address,address,uint256,uint256,bytes) returns (bytes4)",
   "function owner() view returns (address)",
   "function purchase(uint256,uint256)",
   "function redeem(uint256,uint256)",
