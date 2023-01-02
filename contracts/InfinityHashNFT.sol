@@ -28,6 +28,7 @@ contract InfinityHashNFT is
     struct Batch {
         uint256 price;
         uint256 timelock;
+        uint256 initialSupply;
     }
 
     mapping(uint256 => Batch) public batches;
@@ -77,6 +78,10 @@ contract InfinityHashNFT is
         token = _token;
     }
 
+    /**
+     * @notice Set the URI for the NFTs
+     * @param newuri The new URI
+     */
     function setURI(string memory newuri) external onlyOwner {
         _setURI(newuri);
     }
@@ -103,6 +108,7 @@ contract InfinityHashNFT is
 
         batches[_id].price = _price;
         batches[_id].timelock = _timelock;
+        batches[_id].initialSupply = _totalSupply;
 
         emit Mint(_id, _price, _totalSupply, _timelock);
     }
@@ -121,6 +127,8 @@ contract InfinityHashNFT is
         _burn(address(this), _id, totalSupply);
 
         delete batches[_id];
+
+        // emit RemoveBatch(_id, totalSupply);
     }
 
     /**
@@ -153,16 +161,20 @@ contract InfinityHashNFT is
         // mint ERC20
     }
 
+    function erc20Transfer(address _to, uint256 _amount) external onlyOwner {
+        IERC20(token).transfer(_to, _amount);
+    }
+
     /**
      * @notice Checks if any NFT from batch has been sold
      * @param _id The batch ID
      * @return True if any NFT from batch has been sold
      */
     function sold(uint256 _id) public view returns (bool) {
-        return totalSupply(_id) != balanceOf(address(this), _id);
+        return batches[_id].initialSupply != balanceOf(address(this), _id);
     }
 
-    // Internals
+    // Overrides
 
     function _beforeTokenTransfer(
         address operator,
