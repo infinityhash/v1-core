@@ -11,13 +11,20 @@ async function deploy(name, ...params) {
 }
 
 describe("Store", function () {
+  async function getTimeLock() {
+    const ONE_MONTH_IN_SECS = 30 * 24 * 60 * 60; // 30 days
+    const unlockTime = (await time.latest()) + ONE_MONTH_IN_SECS;
+
+    return unlockTime;
+  }
+
   before(async function () {
     [deployer, owner, ...addrs] = await ethers.getSigners();
 
     console.log("Deployer address: ", deployer.address);
     console.log("Owner address: ", owner.address);
 
-    stable = await deploy("USDPMockTocken");
+    stable = await deploy("USDPMockTocken", 6);
     console.log("USDP deployed to", stable.address);
 
     token = await deploy("InfinityHashToken", owner.address);
@@ -30,6 +37,15 @@ describe("Store", function () {
       token.address
     );
     console.log("InfinityHashNFT deployed to", nft.address, "\n");
+
+    // Mint stablecoins to users
+    decimals = String(await stable.decimals());
+
+    stable.mint(addrs[0].address, ethers.utils.parseUnits("100000", decimals));
+    stable.mint(addrs[1].address, ethers.utils.parseUnits("100000", decimals));
+    stable.mint(addrs[2].address, ethers.utils.parseUnits("100000", decimals));
+    stable.mint(addrs[3].address, ethers.utils.parseUnits("100000", decimals));
+    stable.mint(addrs[4].address, ethers.utils.parseUnits("100000", decimals));
   });
 
   describe("Deployment", function () {
@@ -81,9 +97,77 @@ describe("Store", function () {
 
   describe("NFT", function () {
     it("should not mint NFT: not owner", async function () {
+      let timelock = await getTimeLock();
+
       await expect(
-        nft.connect(deployer).mint(0, 1000, 111, 100)
+        nft
+          .connect(deployer)
+          .mint(0, 1000, timelock, ethers.utils.parseUnits("1000", decimals))
       ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("should not mint NFT: zero price", async function () {
+      let timelock = await getTimeLock();
+
+      await expect(
+        nft
+          .connect(owner)
+          .mint(0, 1000, timelock, ethers.utils.parseUnits("0", decimals))
+      ).to.be.revertedWithCustomError(nft, "ZeroPrice");
+    });
+
+    it("should not mint NFT: zero supply", async function () {
+      let timelock = await getTimeLock();
+
+      await expect(
+        nft
+          .connect(owner)
+          .mint(0, 0, timelock, ethers.utils.parseUnits("1000", decimals))
+      ).to.be.revertedWithCustomError(nft, "ZeroSupply");
+    });
+
+    it("should mint NFT batch 0", async function () {
+      let timelock = await getTimeLock();
+
+      await nft
+        .connect(owner)
+        .mint(0, 10_000, timelock, ethers.utils.parseUnits("1000", decimals));
+
+      expect(await nft.exists(0)).to.equal(true);
+      expect(await nft.totalSupply(0)).to.equal(10_000);
+      expect((await nft.batches(0)).price).to.equal(
+        ethers.utils.parseUnits("1000", decimals)
+      );
+      expect((await nft.batches(0)).timelock).to.equal(timelock);
+    });
+
+    it("should not mint NFT batch 0 again: batch exists", async function () {
+      let timelock = await getTimeLock();
+
+      await expect(
+        nft
+          .connect(owner)
+          .mint(0, 10_000, timelock, ethers.utils.parseUnits("1000", decimals))
+      ).to.be.revertedWithCustomError(nft, "BatchExists");
+    });
+
+    it("should not purchase NFT: insufficient allowance", async function () {
+      await expect(nft.connect(addrs[0]).purchase(0, 1)).to.be.revertedWith(
+        "ERC20: insufficient allowance"
+      );
+    });
+
+    it("should not purchase NFT: insufficient allowance", async function () {
+      await stable
+        .connect(addrs[0])
+        .approve(
+          nft.address,
+          ethers.utils.parseUnits(String(100_000), decimals)
+        );
+
+      await expect(nft.connect(addrs[0]).purchase(0, 1)).to.be.revertedWith(
+        "ERC20: insufficient allowance"
+      );
     });
   });
 });
