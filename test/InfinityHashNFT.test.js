@@ -242,6 +242,9 @@ describe("Infinity Hash Project", function () {
       expect(await nft.balanceOf(addrs[0].address, 0)).to.equal(1);
       expect(await nft.sold(0)).to.equal(true);
       expect((await nft.batches(0)).sold).to.equal(1);
+      expect(await stable.balanceOf(nft.address)).to.equal(
+        ethers.utils.parseUnits(String(1000), decimals)
+      );
     });
 
     it("should not purchase NFT: insufficiente NFT balance for transfer", async function () {
@@ -288,6 +291,9 @@ describe("Infinity Hash Project", function () {
       expect(await nft.balanceOf(addrs[1].address, 0)).to.equal(3);
       expect(await nft.sold(0)).to.equal(true);
       expect((await nft.batches(0)).sold).to.equal(4);
+      expect(await stable.balanceOf(nft.address)).to.equal(
+        ethers.utils.parseUnits(String(4000), decimals)
+      );
     });
 
     it("should address 2 purchase 12 NFT", async function () {
@@ -295,6 +301,9 @@ describe("Infinity Hash Project", function () {
       expect(await nft.balanceOf(addrs[2].address, 0)).to.equal(12);
       expect(await nft.sold(0)).to.equal(true);
       expect((await nft.batches(0)).sold).to.equal(16);
+      expect(await stable.balanceOf(nft.address)).to.equal(
+        ethers.utils.parseUnits(String(16000), decimals)
+      );
     });
 
     it("should address 3 purchase 27 NFT", async function () {
@@ -302,6 +311,9 @@ describe("Infinity Hash Project", function () {
       expect(await nft.balanceOf(addrs[3].address, 0)).to.equal(27);
       expect(await nft.sold(0)).to.equal(true);
       expect((await nft.batches(0)).sold).to.equal(43);
+      expect(await stable.balanceOf(nft.address)).to.equal(
+        ethers.utils.parseUnits(String(43000), decimals)
+      );
     });
   });
 
@@ -361,7 +373,7 @@ describe("Infinity Hash Project", function () {
       await time.increaseTo(oneDay);
     });
 
-    it("should redeem NFT", async function () {
+    it("should redeem 1 NFT from address 0", async function () {
       await nft.connect(addrs[0]).redeem(0, 1);
 
       expect(await nft.totalSupply(0)).to.equal(9999);
@@ -370,6 +382,125 @@ describe("Infinity Hash Project", function () {
       expect(await token.balanceOf(addrs[0].address)).to.equal(1000);
       expect(await token.totalSupply()).to.equal(1000);
     });
+
+    it("should redeem 2 NFTs from address 1", async function () {
+      await nft.connect(addrs[1]).redeem(0, 2);
+
+      expect(await nft.totalSupply(0)).to.equal(9997);
+      expect(await nft.balanceOf(addrs[1].address, 0)).to.equal(1);
+      expect((await nft.batches(0)).redeemed).to.equal(3);
+      expect(await token.balanceOf(addrs[1].address)).to.equal(2000);
+      expect(await token.totalSupply()).to.equal(3000);
+    });
+
+    it("should redeem 9 NFTs from address 2", async function () {
+      await nft.connect(addrs[2]).redeem(0, 9);
+
+      expect(await nft.totalSupply(0)).to.equal(9988);
+      expect(await nft.balanceOf(addrs[2].address, 0)).to.equal(3);
+      expect((await nft.batches(0)).redeemed).to.equal(12);
+      expect(await token.balanceOf(addrs[2].address)).to.equal(9000);
+      expect(await token.totalSupply()).to.equal(12000);
+    });
+
+    it("should redeem 15 NFTs from address 3", async function () {
+      await nft.connect(addrs[3]).redeem(0, 15);
+
+      expect(await nft.totalSupply(0)).to.equal(9973);
+      expect(await nft.balanceOf(addrs[3].address, 0)).to.equal(12);
+      expect((await nft.batches(0)).redeemed).to.equal(27);
+      expect(await token.balanceOf(addrs[3].address)).to.equal(15000);
+      expect(await token.totalSupply()).to.equal(27000);
+    });
+  });
+
+  describe("New batch after six months", function () {
+    it("should advance time: ~6 months", async function () {
+      let almost6months = (await time.latest()) + 6 * 30 * 24 * 60 * 60;
+      await time.increaseTo(almost6months);
+    });
+
+    it("should create new batch", async function () {
+      let timelock = await getTimeLock();
+
+      await nft.connect(owner).mint(ethers.utils.parseUnits("2500", decimals));
+
+      expect(await nft.exists(1)).to.equal(true);
+      expect(await nft.totalSupply(1)).to.equal(10_000);
+      expect((await nft.batches(1)).price).to.equal(
+        ethers.utils.parseUnits("2500", decimals)
+      );
+      expect((await nft.batches(1)).timelock).to.be.within(
+        timelock - 10,
+        timelock + 10
+      );
+      expect(await nft.sold(1)).to.equal(false);
+    });
+
+    it("should address 1 purchase 13 NFTs from batch 1", async function () {
+      let address = 1;
+      let amount = 13;
+      let batch = 1;
+
+      await nft.connect(addrs[address]).purchase(batch, amount);
+
+      expect(await nft.balanceOf(addrs[address].address, batch)).to.equal(
+        amount
+      );
+      expect(await nft.sold(batch)).to.equal(true);
+      expect((await nft.batches(batch)).sold).to.equal(amount);
+      expect(await stable.balanceOf(nft.address)).to.equal(
+        ethers.utils.parseUnits(String(2500 * amount), decimals)
+      );
+    });
+
+    it("should address 2 purchase 6 NFTs from batch 1", async function () {
+      let address = 2;
+      let amount = 6;
+      let batch = 1;
+
+      let contractStableBalance = await stable.balanceOf(nft.address);
+      let sold = (await nft.batches(batch)).sold;
+
+      await nft.connect(addrs[address]).purchase(batch, amount);
+
+      expect(await nft.balanceOf(addrs[address].address, batch)).to.equal(
+        amount
+      );
+      expect(await nft.sold(batch)).to.equal(true);
+      expect((await nft.batches(batch)).sold).to.equal(
+        sold.add(String(amount))
+      );
+      expect(await stable.balanceOf(nft.address)).to.equal(
+        contractStableBalance.add(
+          ethers.utils.parseUnits(String(2500 * amount), decimals)
+        )
+      );
+    });
+
+    it("should address 3 purchase 6 NFTs from batch 1", async function () {
+        let address = 3;
+        let amount = 11;
+        let batch = 1;
+  
+        let contractStableBalance = await stable.balanceOf(nft.address);
+        let sold = (await nft.batches(batch)).sold;
+  
+        await nft.connect(addrs[address]).purchase(batch, amount);
+  
+        expect(await nft.balanceOf(addrs[address].address, batch)).to.equal(
+          amount
+        );
+        expect(await nft.sold(batch)).to.equal(true);
+        expect((await nft.batches(batch)).sold).to.equal(
+          sold.add(String(amount))
+        );
+        expect(await stable.balanceOf(nft.address)).to.equal(
+          contractStableBalance.add(
+            ethers.utils.parseUnits(String(2500 * amount), decimals)
+          )
+        );
+      });    
   });
 
   describe("ERC-20: mint", function () {
@@ -388,7 +519,7 @@ describe("Infinity Hash Project", function () {
 
   describe("Interface", function () {
     it("should return interface ID", async function () {
-        expect(await nft.supportsInterface("0x01ffc9a7")).to.equal(true);
+      expect(await nft.supportsInterface("0x01ffc9a7")).to.equal(true);
     });
   });
 });
