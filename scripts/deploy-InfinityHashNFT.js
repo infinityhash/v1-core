@@ -13,7 +13,7 @@ async function main() {
   console.log("USDP Mock Token deployed at " + usdpMockDeploy.address);
   
   const InfinityHashNFT = await hre.ethers.getContractFactory("InfinityHashNFT");
-  const infinityHashNFTDeploy = await InfinityHashNFT.deploy("0xe2803E34B6591BCBeB519A36D4C928A2E6b366d8", usdpMockDeploy.address);
+  const infinityHashNFTDeploy = await InfinityHashNFT.deploy(process.env.AVALANCHE_WALLET, usdpMockDeploy.address);
   console.log("Infinity Hash NFT deployed at " + infinityHashNFTDeploy.address);
 
   const InfinityHash = await hre.ethers.getContractFactory("InfinityHash");
