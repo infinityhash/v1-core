@@ -19,15 +19,22 @@ module.exports = {
   networks: {
     hardhat: {},
     goerli: {
-      url: process.env.GOERLI_URL,
+      url: process.env.GOERLI_URL || "",
       accounts:
         process.env.GOERLI_PK !== undefined ? [process.env.GOERLI_PK] : [],
     },
     bsc_testnet: {
-      url: process.env.BSC_TESTNET_URL,
+      url: process.env.BSC_TESTNET_URL || "",
       accounts:
         process.env.BSC_TESTNET_PK !== undefined
           ? [process.env.BSC_TESTNET_PK]
+          : [],
+    },
+    avalanche_testnet: {
+      url: process.env.AVALANCHE_TESTNET_URL,
+      accounts:
+        process.env.AVALANCHE_TESTNET_PK !== undefined
+          ? [process.env.AVALANCHE_TESTNET_PK]
           : [],
     },
   },
