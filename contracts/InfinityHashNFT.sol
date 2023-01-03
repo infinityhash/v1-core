@@ -2,7 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -16,13 +15,7 @@ import "hardhat/console.sol";
 /// @title InfinityHash NFT
 /// @author Prëxis Labs
 /// @custom:security-contact security@prexis.io
-contract InfinityHashNFT is
-    ERC1155,
-    ERC1155Holder,
-    Ownable,
-    ERC1155Burnable,
-    ERC1155Supply
-{
+contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     using SafeERC20 for IERC20;
     using Counters for Counters.Counter;
 
