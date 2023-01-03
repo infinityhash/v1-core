@@ -479,28 +479,28 @@ describe("Infinity Hash Project", function () {
     });
 
     it("should address 3 purchase 6 NFTs from batch 1", async function () {
-        let address = 3;
-        let amount = 11;
-        let batch = 1;
-  
-        let contractStableBalance = await stable.balanceOf(nft.address);
-        let sold = (await nft.batches(batch)).sold;
-  
-        await nft.connect(addrs[address]).purchase(batch, amount);
-  
-        expect(await nft.balanceOf(addrs[address].address, batch)).to.equal(
-          amount
-        );
-        expect(await nft.sold(batch)).to.equal(true);
-        expect((await nft.batches(batch)).sold).to.equal(
-          sold.add(String(amount))
-        );
-        expect(await stable.balanceOf(nft.address)).to.equal(
-          contractStableBalance.add(
-            ethers.utils.parseUnits(String(2500 * amount), decimals)
-          )
-        );
-      });    
+      let address = 3;
+      let amount = 11;
+      let batch = 1;
+
+      let contractStableBalance = await stable.balanceOf(nft.address);
+      let sold = (await nft.batches(batch)).sold;
+
+      await nft.connect(addrs[address]).purchase(batch, amount);
+
+      expect(await nft.balanceOf(addrs[address].address, batch)).to.equal(
+        amount
+      );
+      expect(await nft.sold(batch)).to.equal(true);
+      expect((await nft.batches(batch)).sold).to.equal(
+        sold.add(String(amount))
+      );
+      expect(await stable.balanceOf(nft.address)).to.equal(
+        contractStableBalance.add(
+          ethers.utils.parseUnits(String(2500 * amount), decimals)
+        )
+      );
+    });
   });
 
   describe("ERC-20: mint", function () {
