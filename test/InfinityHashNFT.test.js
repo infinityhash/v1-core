@@ -12,7 +12,7 @@ async function deploy(name, ...params) {
 
 describe("Infinity Hash Project", function () {
   async function getTimeLock() {
-    const ONE_MONTH_IN_SECS = 30 * 24 * 60 * 60; // 30 days
+    const ONE_MONTH_IN_SECS = 30 * 24 * 60 * 60 * 3; // 30 days
     const unlockTime = (await time.latest()) + ONE_MONTH_IN_SECS;
 
     return unlockTime;
@@ -77,7 +77,7 @@ describe("Infinity Hash Project", function () {
     });
   });
 
-  describe("ERC-1155 configuration", function () {
+  describe("ERC-1155: configuration", function () {
     it("should not set URI: not owner", async function () {
       await expect(
         nft.connect(deployer).setURI("https://scam.com.br/ipfs/")
@@ -112,14 +112,12 @@ describe("Infinity Hash Project", function () {
     });
   });
 
-  describe("NFT: mint", function () {
+  describe("ERC-1155: mint", function () {
     it("should not mint NFT: not owner", async function () {
       let timelock = await getTimeLock();
 
       await expect(
-        nft
-          .connect(deployer)
-          .mint(0, 1000, timelock, ethers.utils.parseUnits("1000", decimals))
+        nft.connect(deployer).mint(ethers.utils.parseUnits("1000", decimals))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
@@ -127,93 +125,100 @@ describe("Infinity Hash Project", function () {
       let timelock = await getTimeLock();
 
       await expect(
-        nft
-          .connect(owner)
-          .mint(0, 1000, timelock, ethers.utils.parseUnits("0", decimals))
+        nft.connect(owner).mint(ethers.utils.parseUnits("0", decimals))
       ).to.be.revertedWithCustomError(nft, "ZeroPrice");
-    });
-
-    it("should not mint NFT: zero supply", async function () {
-      let timelock = await getTimeLock();
-
-      await expect(
-        nft
-          .connect(owner)
-          .mint(0, 0, timelock, ethers.utils.parseUnits("1000", decimals))
-      ).to.be.revertedWithCustomError(nft, "ZeroSupply");
     });
 
     it("should mint NFT batch 0", async function () {
       let timelock = await getTimeLock();
 
-      await nft
-        .connect(owner)
-        .mint(0, 10_000, timelock, ethers.utils.parseUnits("1000", decimals));
+      await nft.connect(owner).mint(ethers.utils.parseUnits("1000", decimals));
 
       expect(await nft.exists(0)).to.equal(true);
       expect(await nft.totalSupply(0)).to.equal(10_000);
       expect((await nft.batches(0)).price).to.equal(
         ethers.utils.parseUnits("1000", decimals)
       );
-      expect((await nft.batches(0)).timelock).to.equal(timelock);
+      expect((await nft.batches(0)).timelock).to.be.within(
+        timelock - 10,
+        timelock + 10
+      );
       expect(await nft.sold(0)).to.equal(false);
     });
 
-    it("should not mint NFT batch 0 again: batch exists", async function () {
-      let timelock = await getTimeLock();
-
-      await expect(
-        nft
-          .connect(owner)
-          .mint(0, 10_000, timelock, ethers.utils.parseUnits("1000", decimals))
-      ).to.be.revertedWithCustomError(nft, "BatchExists");
-    });
-
-    it("should not remove batch 0: not owner", async function () {
-      await expect(nft.connect(deployer).removeBatch(0)).to.be.revertedWith(
+    it("should not remove last batch: not owner", async function () {
+      await expect(nft.connect(deployer).removeLastBatch()).to.be.revertedWith(
         "Ownable: caller is not the owner"
       );
-    });
-
-    it("should not remove batch 1: not exists", async function () {
-      await expect(
-        nft.connect(owner).removeBatch(1)
-      ).to.be.revertedWithCustomError(nft, "BatchNotExists");
     });
 
     it("should mint NFT batch 1", async function () {
       let timelock = await getTimeLock();
 
-      await nft
-        .connect(owner)
-        .mint(1, 10_000, timelock, ethers.utils.parseUnits("2000", decimals));
+      await nft.connect(owner).mint(ethers.utils.parseUnits("2000", decimals));
 
       expect(await nft.exists(1)).to.equal(true);
       expect(await nft.totalSupply(1)).to.equal(10_000);
       expect((await nft.batches(1)).price).to.equal(
         ethers.utils.parseUnits("2000", decimals)
       );
-      expect((await nft.batches(1)).timelock).to.equal(timelock);
+      expect((await nft.batches(1)).timelock).to.be.within(
+        timelock - 10,
+        timelock + 10
+      );
+      expect(await nft.sold(0)).to.equal(false);
     });
 
     it("should remove batch 1 (no one sold yet)", async function () {
-      await nft.connect(owner).removeBatch(1);
+      await nft.connect(owner).removeLastBatch();
 
       expect(await nft.exists(1)).to.equal(false);
       expect(await nft.totalSupply(1)).to.equal(0);
       expect((await nft.batches(1)).price).to.equal(0);
       expect((await nft.batches(1)).timelock).to.equal(0);
     });
+
+    it("should remove batch 0 (no one sold yet)", async function () {
+      await nft.connect(owner).removeLastBatch();
+
+      expect(await nft.exists(0)).to.equal(false);
+      expect(await nft.totalSupply(0)).to.equal(0);
+      expect((await nft.batches(0)).price).to.equal(0);
+      expect((await nft.batches(0)).timelock).to.equal(0);
+    });
+
+    it("should not remove last batch: no batches", async function () {
+      await expect(
+        nft.connect(owner).removeLastBatch()
+      ).to.be.revertedWithCustomError(nft, "NoBatches");
+    });
+
+    it("should mint NFT batch 0 again", async function () {
+      let timelock = await getTimeLock();
+
+      await nft.connect(owner).mint(ethers.utils.parseUnits("1000", decimals));
+
+      expect(await nft.exists(0)).to.equal(true);
+      expect(await nft.totalSupply(0)).to.equal(10_000);
+      expect((await nft.batches(0)).price).to.equal(
+        ethers.utils.parseUnits("1000", decimals)
+      );
+      expect((await nft.batches(0)).timelock).to.be.within(
+        timelock - 10,
+        timelock + 10
+      );
+      expect(await nft.sold(0)).to.equal(false);
+    });
   });
 
-  describe("NFT: purchase", function () {
+  describe("ERC-1155: purchase", function () {
     it("should not purchase NFT: insufficient allowance", async function () {
       await expect(nft.connect(addrs[0]).purchase(0, 1)).to.be.revertedWith(
         "ERC20: insufficient allowance"
       );
     });
 
-    it("should approve stablecoin allowance", async function () {
+    it("should approve stablecoin allowance (address 0)", async function () {
       await stable
         .connect(addrs[0])
         .approve(
@@ -232,10 +237,11 @@ describe("Infinity Hash Project", function () {
       ).to.be.revertedWithCustomError(nft, "ZeroAmount");
     });
 
-    it("should purchase NFT", async function () {
+    it("should address 0 purchase 1 NFT", async function () {
       await nft.connect(addrs[0]).purchase(0, 1);
       expect(await nft.balanceOf(addrs[0].address, 0)).to.equal(1);
       expect(await nft.sold(0)).to.equal(true);
+      expect((await nft.batches(0)).sold).to.equal(1);
     });
 
     it("should not purchase NFT: insufficiente NFT balance for transfer", async function () {
@@ -252,8 +258,58 @@ describe("Infinity Hash Project", function () {
 
     it("should not remove batch 0: already sold one NFT", async function () {
       await expect(
-        nft.connect(owner).removeBatch(0)
+        nft.connect(owner).removeLastBatch()
       ).to.be.revertedWithCustomError(nft, "BatchSold");
+    });
+
+    it("should approve stablecoin allowance (addresses 1, 2 and 3)", async function () {
+      await stable
+        .connect(addrs[1])
+        .approve(
+          nft.address,
+          ethers.utils.parseUnits(String(1_000_000_000), decimals)
+        );
+      await stable
+        .connect(addrs[2])
+        .approve(
+          nft.address,
+          ethers.utils.parseUnits(String(1_000_000_000), decimals)
+        );
+      await stable
+        .connect(addrs[3])
+        .approve(
+          nft.address,
+          ethers.utils.parseUnits(String(1_000_000_000), decimals)
+        );
+    });
+
+    it("should address 1 purchase 3 NFTs", async function () {
+      await nft.connect(addrs[1]).purchase(0, 3);
+      expect(await nft.balanceOf(addrs[1].address, 0)).to.equal(3);
+      expect(await nft.sold(0)).to.equal(true);
+      expect((await nft.batches(0)).sold).to.equal(4);
+    });
+
+    it("should address 2 purchase 12 NFT", async function () {
+      await nft.connect(addrs[2]).purchase(0, 12);
+      expect(await nft.balanceOf(addrs[2].address, 0)).to.equal(12);
+      expect(await nft.sold(0)).to.equal(true);
+      expect((await nft.batches(0)).sold).to.equal(16);
+    });
+
+    it("should address 3 purchase 27 NFT", async function () {
+      await nft.connect(addrs[3]).purchase(0, 27);
+      expect(await nft.balanceOf(addrs[3].address, 0)).to.equal(27);
+      expect(await nft.sold(0)).to.equal(true);
+      expect((await nft.batches(0)).sold).to.equal(43);
+    });
+  });
+
+  describe("ERC-1155: stablecoin transfer", function () {
+    it("should not transfer stablecoin: not owner", async function () {
+      await expect(
+        nft.connect(addrs[0]).erc20Transfer(stable.address, owner.address, 1)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("should withdraw stablecoin", async function () {
@@ -267,6 +323,72 @@ describe("Infinity Hash Project", function () {
       expect(await stable.balanceOf(addrs[9].address)).to.equal(
         ownerBalance.add(nftBalance)
       );
+    });
+  });
+
+  describe("ERC-1155: redeem", function () {
+    it("should not redeem NFT: batch not exists", async function () {
+      await expect(
+        nft.connect(addrs[0]).redeem(1, 1)
+      ).to.be.revertedWithCustomError(nft, "BatchNotExists");
+    });
+
+    it("should not redeem NFT: zero amount", async function () {
+      await expect(
+        nft.connect(addrs[0]).redeem(0, 0)
+      ).to.be.revertedWithCustomError(nft, "ZeroAmount");
+    });
+
+    it("should not redeem NFT: too soon", async function () {
+      await expect(
+        nft.connect(addrs[0]).redeem(0, 1)
+      ).to.be.revertedWithCustomError(nft, "TooSoon");
+    });
+
+    it("should advance time: ~89 days", async function () {
+      let almost3months = (await time.latest()) + 89 * 24 * 60 * 60;
+      await time.increaseTo(almost3months);
+    });
+
+    it("should not redeem NFT: too soon (1 day left)", async function () {
+      await expect(
+        nft.connect(addrs[0]).redeem(0, 1)
+      ).to.be.revertedWithCustomError(nft, "TooSoon");
+    });
+
+    it("should advance time: 1 day", async function () {
+      let oneDay = (await time.latest()) + 1 * 24 * 60 * 60;
+      await time.increaseTo(oneDay);
+    });
+
+    it("should redeem NFT", async function () {
+      await nft.connect(addrs[0]).redeem(0, 1);
+
+      expect(await nft.totalSupply(0)).to.equal(9999);
+      expect(await nft.balanceOf(addrs[0].address, 0)).to.equal(0);
+      expect((await nft.batches(0)).redeemed).to.equal(1);
+      expect(await token.balanceOf(addrs[0].address)).to.equal(1000);
+      expect(await token.totalSupply()).to.equal(1000);
+    });
+  });
+
+  describe("ERC-20: mint", function () {
+    it("should not mint: deployer not minter", async function () {
+      await expect(
+        token.connect(deployer).mint(addrs[0].address, 1)
+      ).to.be.revertedWithCustomError(token, "NotMinter");
+    });
+
+    it("should not mint: nft contract owner not minter", async function () {
+      await expect(
+        token.connect(owner).mint(addrs[0].address, 1)
+      ).to.be.revertedWithCustomError(token, "NotMinter");
+    });
+  });
+
+  describe("Interface", function () {
+    it("should return interface ID", async function () {
+        expect(await nft.supportsInterface("0x01ffc9a7")).to.equal(true);
     });
   });
 });

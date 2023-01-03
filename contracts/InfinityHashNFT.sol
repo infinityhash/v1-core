@@ -4,8 +4,8 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
@@ -26,7 +26,7 @@ contract InfinityHashNFT is
     using SafeERC20 for IERC20;
     using Counters for Counters.Counter;
 
-    Counters.Counter private _batchIdCounter;
+    Counters.Counter public batchIdCounter;
 
     address public immutable stablecoin;
     address public token;
@@ -34,13 +34,15 @@ contract InfinityHashNFT is
     uint256 public constant batchTotalSupply = 10000;
     uint256 public constant batchTimelock = 60 * 60 * 24 * 30 * 3; // 3 months
     uint256 public constant tokensToBeMinted = 1000;
-    
+
     struct Batch {
         uint256 price;
         uint256 timelock;
         uint256 initialSupply;
+        uint256 sold;
+        uint256 redeemed;
     }
-    
+
     mapping(uint256 => Batch) public batches;
 
     error ZeroAddress();
@@ -48,8 +50,10 @@ contract InfinityHashNFT is
 
     error ZeroPrice();
     error ZeroSupply();
+
     error BatchExists();
     error BatchNotExists();
+    error NoBatches();
     error BatchSold();
 
     error ZeroAmount();
@@ -127,13 +131,11 @@ contract InfinityHashNFT is
      * @dev Only new batches allowed, it's not possible to mint more units of an existing batch
      * @param _price The price of the unit in stablecoin, considering decimals
      */
-    function mint(
-        uint256 _price
-    ) external onlyOwner returns (uint256 batchId) {
+    function mint(uint256 _price) external onlyOwner returns (uint256 batchId) {
         if (_price == 0) revert ZeroPrice();
 
-        batchId = _batchIdCounter.current();
-        _batchIdCounter.increment();
+        batchId = batchIdCounter.current();
+        batchIdCounter.increment();
 
         _mint(address(this), batchId, batchTotalSupply, "");
 
@@ -141,7 +143,13 @@ contract InfinityHashNFT is
         batches[batchId].timelock = block.timestamp + batchTimelock;
         batches[batchId].initialSupply = batchTotalSupply;
 
-        emit Mint(msg.sender, batchId, _price, batchTotalSupply, batches[batchId].timelock);
+        emit Mint(
+            msg.sender,
+            batchId,
+            _price,
+            batchTotalSupply,
+            batches[batchId].timelock
+        );
     }
 
     /**
@@ -149,9 +157,10 @@ contract InfinityHashNFT is
      * @dev Only removes batch that no NFT has been sold
      */
     function removeLastBatch() external onlyOwner {
-        uint256 lastBatchId = _batchIdCounter.current() - 1;
-        
-        if (!exists(lastBatchId)) revert BatchNotExists();
+        if (batchIdCounter.current() == 0) revert NoBatches();
+
+        uint256 lastBatchId = batchIdCounter.current() - 1;
+
         if (sold(lastBatchId)) revert BatchSold();
 
         uint256 totalSupply = totalSupply(lastBatchId);
@@ -159,7 +168,7 @@ contract InfinityHashNFT is
         _burn(address(this), lastBatchId, totalSupply);
 
         delete batches[lastBatchId];
-        _batchIdCounter.decrement();
+        batchIdCounter.decrement();
 
         emit Remove(msg.sender, lastBatchId, totalSupply);
     }
@@ -196,6 +205,8 @@ contract InfinityHashNFT is
 
         _safeTransferFrom(address(this), msg.sender, _id, _qty, "");
 
+        batches[_id].sold += _qty;
+
         emit Purchase(msg.sender, _id, _qty, price, total);
     }
 
@@ -208,6 +219,8 @@ contract InfinityHashNFT is
         uint256 total = _qty * tokensToBeMinted;
 
         InfinityHash(token).mint(msg.sender, total);
+
+        batches[_id].redeemed += _qty;
 
         emit Redeem(msg.sender, _id, _qty, total);
     }
