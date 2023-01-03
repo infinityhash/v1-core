@@ -2,11 +2,12 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "./InfinityHash.sol";
 
@@ -23,17 +24,23 @@ contract InfinityHashNFT is
     ERC1155Supply
 {
     using SafeERC20 for IERC20;
+    using Counters for Counters.Counter;
+
+    Counters.Counter private _batchIdCounter;
 
     address public immutable stablecoin;
     address public token;
-    uint256 public constant tokensToBeMinted = 1000;
 
+    uint256 public constant batchTotalSupply = 10000;
+    uint256 public constant batchTimelock = 60 * 60 * 24 * 30 * 3; // 3 months
+    uint256 public constant tokensToBeMinted = 1000;
+    
     struct Batch {
         uint256 price;
         uint256 timelock;
         uint256 initialSupply;
     }
-
+    
     mapping(uint256 => Batch) public batches;
 
     error ZeroAddress();
@@ -118,46 +125,59 @@ contract InfinityHashNFT is
     /**
      * @notice Mint a new batch of NFTs
      * @dev Only new batches allowed, it's not possible to mint more units of an existing batch
-     * @param _id The batch ID
-     * @param _totalSupply The total supply of the batch
-     * @param _timelock The timelock release
      * @param _price The price of the unit in stablecoin, considering decimals
      */
     function mint(
-        uint256 _id,
-        uint256 _totalSupply,
-        uint256 _timelock,
         uint256 _price
-    ) external onlyOwner {
+    ) external onlyOwner returns (uint256 batchId) {
         if (_price == 0) revert ZeroPrice();
-        if (_totalSupply == 0) revert ZeroSupply();
-        if (exists(_id)) revert BatchExists();
 
-        _mint(address(this), _id, _totalSupply, "");
+        batchId = _batchIdCounter.current();
+        _batchIdCounter.increment();
 
-        batches[_id].price = _price;
-        batches[_id].timelock = _timelock;
-        batches[_id].initialSupply = _totalSupply;
+        _mint(address(this), batchId, batchTotalSupply, "");
 
-        emit Mint(msg.sender, _id, _price, _totalSupply, _timelock);
+        batches[batchId].price = _price;
+        batches[batchId].timelock = block.timestamp + batchTimelock;
+        batches[batchId].initialSupply = batchTotalSupply;
+
+        emit Mint(msg.sender, batchId, _price, batchTotalSupply, batches[batchId].timelock);
     }
 
     /**
-     * @notice Remove a unsold batch of NFTs
-     * @dev Only removes lots that no NFT has been sold
-     * @param _id The batch ID
+     * @notice Remove the last batch
+     * @dev Only removes batch that no NFT has been sold
      */
-    function removeBatch(uint256 _id) external onlyOwner {
-        if (!exists(_id)) revert BatchNotExists();
-        if (sold(_id)) revert BatchSold();
+    function removeLastBatch() external onlyOwner {
+        uint256 lastBatchId = _batchIdCounter.current() - 1;
+        
+        if (!exists(lastBatchId)) revert BatchNotExists();
+        if (sold(lastBatchId)) revert BatchSold();
 
-        uint256 totalSupply = totalSupply(_id);
+        uint256 totalSupply = totalSupply(lastBatchId);
 
-        _burn(address(this), _id, totalSupply);
+        _burn(address(this), lastBatchId, totalSupply);
 
-        delete batches[_id];
+        delete batches[lastBatchId];
+        _batchIdCounter.decrement();
 
-        emit Remove(msg.sender, _id, totalSupply);
+        emit Remove(msg.sender, lastBatchId, totalSupply);
+    }
+
+    /**
+     * @notice Transfer ERC-20 tokens from contract
+     * @param _token The token contract address
+     * @param _to The recipient address
+     * @param _amount The amount to transfer
+     */
+    function erc20Transfer(
+        address _token,
+        address _to,
+        uint256 _amount
+    ) external onlyOwner {
+        IERC20(_token).safeTransfer(_to, _amount);
+
+        emit TransferERC20(msg.sender, _token, _to, _amount);
     }
 
     /**
@@ -190,22 +210,6 @@ contract InfinityHashNFT is
         InfinityHash(token).mint(msg.sender, total);
 
         emit Redeem(msg.sender, _id, _qty, total);
-    }
-
-    /**
-     * @notice Transfer ERC-20 tokens from contract
-     * @param _token The token contract address
-     * @param _to The recipient address
-     * @param _amount The amount to transfer
-     */
-    function erc20Transfer(
-        address _token,
-        address _to,
-        uint256 _amount
-    ) external onlyOwner {
-        IERC20(_token).safeTransfer(_to, _amount);
-
-        emit TransferERC20(msg.sender, _token, _to, _amount);
     }
 
     /**
