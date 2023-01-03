@@ -19,13 +19,23 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     using SafeERC20 for IERC20;
     using Counters for Counters.Counter;
 
+    /// @notice Next batch ID
     Counters.Counter public batchIdCounter;
 
+    /// @notice Stablecoin token address constant
     address public immutable stablecoin;
+
+    /// @notice Stablecoin token address
+    /// @dev Set once on deployment
     address public token;
 
+    /// @notice Batch total supply
     uint256 public constant batchTotalSupply = 10000;
-    uint256 public constant batchTimelock = 60 * 60 * 24 * 30 * 3; // 3 months
+
+    /// @notice Batch redeem time lock (3 months)
+    uint256 public constant batchTimelock = 60 * 60 * 24 * 30 * 3;
+
+    /// @notice Redeemable amount of Infinity Hash tokens
     uint256 public constant tokensToBeMinted = 1000;
 
     struct Batch {
@@ -36,6 +46,12 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
         uint256 redeemed;
     }
 
+    /// @notice Batches minted
+    /// @return price The price of each NFT from the batch
+    /// @return timelock The time lock for redeeming Infinity Hash tokens (3 months)
+    /// @return initialSupply The initial supply of the batch
+    /// @return sold The amount of NFTs sold from the batch
+    /// @return redeemed The amount of Infinity Hash tokens redeemed
     mapping(uint256 => Batch) public batches;
 
     error ZeroAddress();
@@ -122,7 +138,9 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     /**
      * @notice Mint a new batch of NFTs
      * @dev Only new batches allowed, it's not possible to mint more units of an existing batch
+     * @dev Only owner can mint batches
      * @param _price The price of the unit in stablecoin, considering decimals
+     * @return batchId The batch ID
      */
     function mint(uint256 _price) external onlyOwner returns (uint256 batchId) {
         if (_price == 0) revert ZeroPrice();
@@ -147,7 +165,8 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
 
     /**
      * @notice Remove the last batch
-     * @dev Only removes batch that no NFT has been sold
+     * @dev Only owner can remove batches
+     * @dev Only removes batch if no NFT has been sold
      */
     function removeLastBatch() external onlyOwner {
         if (batchIdCounter.current() == 0) revert NoBatches();
@@ -167,7 +186,8 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     }
 
     /**
-     * @notice Transfer ERC-20 tokens from contract
+     * @notice Transfer ERC-20 tokens from contract to an address
+     * @dev Only owner can transfer tokens
      * @param _token The token contract address
      * @param _to The recipient address
      * @param _amount The amount to transfer
@@ -183,7 +203,7 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     }
 
     /**
-     * @notice Purchase NFTs from a batch
+     * @notice Purchase NFTs from a batch transferring stablecoins
      * @param _id The batch ID
      * @param _qty The amount of NFTs to purchase
      */
@@ -203,6 +223,11 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
         emit Purchase(msg.sender, _id, _qty, price, total);
     }
 
+    /**
+     * @notice Redeem NFTs from a batch burning them and getting the Infinity Hash ERC-20 tokens
+     * @param _id The batch ID
+     * @param _qty The amount of NFTs to redeem
+     */
     function redeem(uint256 _id, uint256 _qty) external {
         if (!exists(_id)) revert BatchNotExists();
         if (_qty == 0) revert ZeroAmount();
