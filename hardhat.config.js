@@ -1,6 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("hardhat-abi-exporter");
-require("hardhat-docgen");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -18,24 +17,15 @@ module.exports = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {},
+    ethereum: {
+      url: process.env.ETHERNET_URL || "",
+      accounts:
+        process.env.ETHERNET_PK !== undefined ? [process.env.ETHERNET_PK] : [],
+    },
     goerli: {
       url: process.env.GOERLI_URL || "",
       accounts:
         process.env.GOERLI_PK !== undefined ? [process.env.GOERLI_PK] : [],
-    },
-    bsc_testnet: {
-      url: process.env.BSC_TESTNET_URL || "",
-      accounts:
-        process.env.BSC_TESTNET_PK !== undefined
-          ? [process.env.BSC_TESTNET_PK]
-          : [],
-    },
-    avalanche_testnet: {
-      url: process.env.AVALANCHE_TESTNET_URL,
-      accounts:
-        process.env.AVALANCHE_TESTNET_PK !== undefined
-          ? [process.env.AVALANCHE_TESTNET_PK]
-          : [],
     },
   },
 
@@ -48,18 +38,15 @@ module.exports = {
   },
 
   etherscan: {
-    apiKey: process.env.BSC_EXPLORER_API,
+    apiKey: {
+      goerli: process.env.ETHERSCAN_API,
+      ethereum: process.env.ETHERSCAN_API
+    }
   },
 
   abiExporter: {
     path: "./abi",
     runOnCompile: true,
     format: "minimal",
-  },
-
-  docgen: {
-    path: "./docs",
-    clear: true,
-    runOnCompile: true,
   },
 };
