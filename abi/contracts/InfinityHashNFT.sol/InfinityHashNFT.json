@@ -1,10 +1,11 @@
 [
   "constructor(address,address)",
-  "error BatchExists()",
   "error BatchNotExists()",
   "error BatchSold()",
+  "error InvalidAddress()",
   "error NoBatches()",
   "error TokenAlreadySet(address)",
+  "error TokenNotConfigured()",
   "error TooSoon()",
   "error ZeroAddress()",
   "error ZeroAmount()",

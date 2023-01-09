@@ -88,6 +88,13 @@ describe("Infinity Hash Project", function () {
       await nft.connect(owner).setURI("https://ipfs.io/ipfs/");
     });
 
+    it("should not mint: token contract not configured", async function () {
+      await expect(nft.connect(owner).mint(1000)).to.be.revertedWithCustomError(
+        nft,
+        "TokenNotConfigured"
+      );
+    });
+
     it("should not set token contract address: not owner", async function () {
       await expect(
         nft.connect(deployer).setTokenContract(token.address)
@@ -98,6 +105,12 @@ describe("Infinity Hash Project", function () {
       await expect(
         nft.connect(owner).setTokenContract(ethers.constants.AddressZero)
       ).to.be.revertedWithCustomError(nft, "ZeroAddress");
+    });
+
+    it("should not set token address: NFT contract address", async function () {
+      await expect(
+        nft.connect(owner).setTokenContract(nft.address)
+      ).to.be.revertedWithCustomError(nft, "InvalidAddress");
     });
 
     it("should set token contract address", async function () {

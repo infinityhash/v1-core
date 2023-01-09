@@ -55,10 +55,12 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     mapping(uint256 => Batch) public batches;
 
     error ZeroAddress();
+    error InvalidAddress();
     error TokenAlreadySet(address token);
 
     error ZeroPrice();
     error ZeroSupply();
+    error TokenNotConfigured();
 
     error BatchNotExists();
     error NoBatches();
@@ -122,6 +124,7 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
      */
     function setTokenContract(address _token) external onlyOwner {
         if (_token == address(0)) revert ZeroAddress();
+        if (_token == address(this)) revert InvalidAddress();
         if (token != address(0)) revert TokenAlreadySet(token);
         token = _token;
     }
@@ -143,6 +146,7 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
      */
     function mint(uint256 _price) external onlyOwner returns (uint256 batchId) {
         if (_price == 0) revert ZeroPrice();
+        if (token == address(0)) revert TokenNotConfigured();
 
         batchId = batchIdCounter.current();
         batchIdCounter.increment();
