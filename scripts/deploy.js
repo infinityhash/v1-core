@@ -1,30 +1,92 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
-// will compile your contracts, add the Hardhat Runtime Environment's members to the
-// global scope, and execute the script.
 const hre = require("hardhat");
+var clc = require("cli-color");
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  console.log(clc.bold("\nInfinity Hash"));
+  console.log("Network:", clc.yellow(hre.network.name), "\n");
 
-  const lockedAmount = hre.ethers.utils.parseEther("1");
+  if (hre.network.name == "goerli" || hre.network.name == "hardhat") {
+    if (hre.network.name == "hardhat") {
+      console.log(clc.red.inverse("HARDHAT LOCAL NETWORK\n"));
+    }
 
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+    if (hre.network.name == "goerli") {
+      console.log(clc.red.inverse("GOERLI TESTNET\n"));
+    }
 
-  await lock.deployed();
+    // Stablecoin mock token
+    const USDPMock = await hre.ethers.getContractFactory("USDPMockTocken");
+    const usdpMock = await USDPMock.deploy(6);
+    await usdpMock.deployed();
+    console.log("USDP Mock Token deployed at " + clc.yellow(usdpMock.address));
 
-  console.log(
-    `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
+    contractOwner = process.env.GOERLI_OWNER_ACCOUNT;
+    stablecoinAddress = usdpMock.address;
+  }
+
+  if (hre.network.name == "ethereum") {
+    contractOwner = process.env.ETHEREUM_OWNER_ACCOUNT;
+    stablecoinAddress = process.env.ETHEREUM_STABLECOIN_ADDRESS;
+  }
+
+  // Infinity Hash NFT (ERC-1155)
+  const InfinityHashNFT = await hre.ethers.getContractFactory(
+    "InfinityHashNFT"
   );
+  const infinityHashNFT = await InfinityHashNFT.deploy(
+    contractOwner,
+    stablecoinAddress
+  );
+  await infinityHashNFT.deployed();
+  console.log(
+    "InfinityHashNFT deployed at " + clc.yellow(infinityHashNFT.address)
+  );
+
+  // Infinity Hash Token (ERC-20)
+  const InfinityHash = await hre.ethers.getContractFactory("InfinityHash");
+  const infinityHash = await InfinityHash.deploy(infinityHashNFT.address);
+  await infinityHash.deployed();
+  console.log(
+    "InfinityHash Token deployed at " + clc.yellow(infinityHash.address, "\n")
+  );
+
+  // Warning
+  console.warn(
+    clc.inverse.red("WARNING:"),
+    "Owner MUST call",
+    clc.inverse.bold.yellow(
+      "InfinityHashNFT.setTokenContract(" + infinityHash.address + ")"
+    )
+  );
+
+  // Contracts verification
+  if (hre.network.name == "goerli" || hre.network.name == "ethereum") {
+    console.log("\nVerifying contracts on Etherscan...\n");
+
+    if (hre.network.name == "goerli") {
+      await hre.run("verify:verify", {
+        address: stablecoinAddress,
+        contract: "contracts/tests/ERC20Mock.sol:USDPMockTocken",
+        constructorArguments: [6],
+      });
+    }
+
+    await hre.run("verify:verify", {
+      address: infinityHashNFT.address,
+      contract: "contracts/InfinityHashNFT.sol:InfinityHashNFT",
+      constructorArguments: [contractOwner, stablecoinAddress],
+    });
+
+    await hre.run("verify:verify", {
+      address: infinityHash.address,
+      contract: "contracts/InfinityHash.sol:InfinityHash",
+      constructorArguments: [infinityHashNFT.address],
+    });
+  }
+
+  console.log(clc.blue("\nDeploy Finished\n"));
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
