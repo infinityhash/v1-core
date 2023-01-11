@@ -25,7 +25,7 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     /// @notice Stablecoin token address constant
     address public immutable stablecoin;
 
-    /// @notice Stablecoin token address
+    /// @notice Infinity Hash token address
     /// @dev Set once on deployment
     address public token;
 
@@ -237,7 +237,10 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
         if (batches[_id].timelock > block.timestamp) revert TooSoon();
 
         _burn(msg.sender, _id, _qty);
-        uint256 total = _qty * tokensToBeMinted;
+
+        uint256 decimals = InfinityHash(token).decimals();
+
+        uint256 total = (_qty * tokensToBeMinted) * 10 ** decimals;
 
         InfinityHash(token).mint(msg.sender, total);
 
