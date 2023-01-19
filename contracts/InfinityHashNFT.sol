@@ -25,7 +25,8 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     address public immutable stablecoin;
 
     /// @notice Infinity Hash token address
-    /// @dev Set once on deployment
+    /// @dev Only set once after deployment
+    /// @dev If not setted, it's not possible to mint batches
     address public token;
 
     /// @notice Batch total supply
