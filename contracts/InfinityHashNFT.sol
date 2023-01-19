@@ -60,7 +60,6 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     error TokenAlreadySet(address token);
 
     error ZeroPrice();
-    error ZeroSupply();
     error TokenNotConfigured();
 
     error BatchNotExists();
