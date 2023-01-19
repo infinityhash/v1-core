@@ -18,9 +18,9 @@ module.exports = {
   networks: {
     hardhat: {},
     ethereum: {
-      url: process.env.ETHERNET_URL || "",
+      url: process.env.ETHEREUM_URL || "",
       accounts:
-        process.env.ETHERNET_PK !== undefined ? [process.env.ETHERNET_PK] : [],
+        process.env.ETHEREUM_PK !== undefined ? [process.env.ETHEREUM_PK] : [],
     },
     goerli: {
       url: process.env.GOERLI_URL || "",
