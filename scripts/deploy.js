@@ -64,24 +64,36 @@ async function main() {
     console.log("\nVerifying contracts on Etherscan...\n");
 
     if (hre.network.name == "goerli") {
-      await hre.run("verify:verify", {
-        address: stablecoinAddress,
-        contract: "contracts/tests/ERC20Mock.sol:USDPMockTocken",
-        constructorArguments: [6],
-      });
+      try {
+        await hre.run("verify:verify", {
+          address: stablecoinAddress,
+          contract: "contracts/tests/ERC20Mock.sol:USDPMockTocken",
+          constructorArguments: [6],
+        });
+      } catch (error) {
+        console.log("Mock Token verification failed:", error.message);
+      }
     }
 
-    await hre.run("verify:verify", {
-      address: infinityHashNFT.address,
-      contract: "contracts/InfinityHashNFT.sol:InfinityHashNFT",
-      constructorArguments: [contractOwner, stablecoinAddress],
-    });
+    try {
+      await hre.run("verify:verify", {
+        address: infinityHashNFT.address,
+        contract: "contracts/InfinityHashNFT.sol:InfinityHashNFT",
+        constructorArguments: [contractOwner, stablecoinAddress],
+      });
+    } catch (error) {
+      console.log("InfinityHashNFT verification failed:", error.message);
+    }
 
-    await hre.run("verify:verify", {
-      address: infinityHash.address,
-      contract: "contracts/InfinityHash.sol:InfinityHash",
-      constructorArguments: [infinityHashNFT.address],
-    });
+    try {
+      await hre.run("verify:verify", {
+        address: infinityHash.address,
+        contract: "contracts/InfinityHash.sol:InfinityHash",
+        constructorArguments: [infinityHashNFT.address],
+      });
+    } catch (error) {
+      console.log("InfinityHash Token verification failed:", error.message);
+    }
   }
 
   console.log(clc.blue("\nDeploy Finished\n"));
