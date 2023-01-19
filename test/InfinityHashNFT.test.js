@@ -437,6 +437,12 @@ describe("Infinity Hash Project", function () {
       );
     });
 
+    it("should not redeem 100 NFTs from address 2 - address does not have enough NFTs", async function () {
+      await expect(nft.connect(addrs[2]).redeem(0, 100)).to.be.revertedWith(
+        "ERC1155: burn amount exceeds balance"
+      );
+    });
+
     it("should redeem 15 NFTs from address 3", async function () {
       await nft.connect(addrs[3]).redeem(0, 15);
 
