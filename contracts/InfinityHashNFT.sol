@@ -32,7 +32,7 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     /// @notice Batch total supply
     uint256 public constant batchTotalSupply = 10000;
 
-    /// @notice Batch redeem time lock (3 months)
+    /// @notice Batch redeem time lock (90 days)
     uint256 public constant batchTimelock = 60 * 60 * 24 * 30 * 3;
 
     /// @notice Redeemable amount of Infinity Hash tokens
