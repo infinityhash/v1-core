@@ -11,8 +11,6 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "./InfinityHash.sol";
 
-import "hardhat/console.sol";
-
 /// @title InfinityHash NFT
 /// @author Prëxis Labs
 /// @custom:security-contact security@prexis.io
