@@ -547,6 +547,28 @@ describe("Infinity Hash Project", function () {
         )
       );
     });
+
+    describe("URI", function () {
+      it("should return IPF default URI", async function () {
+        expect(await nft.uri(0)).to.equal("https://ipfs.io/ipfs/0.json");
+        expect(await nft.uri(1)).to.equal("https://ipfs.io/ipfs/1.json");
+        expect(await nft.uri(2)).to.equal("https://ipfs.io/ipfs/2.json");
+      });
+
+      it("should not set URI - not owner", async function () {
+        await expect(nft.connect(addrs[1]).setURI("test")).to.be.revertedWith(
+          "Ownable: caller is not the owner"
+        );
+      });
+
+      it("should set the URI and return the new setted URIs", async function () {
+        await nft.connect(owner).setURI("https://prexis.io/metadata/");
+
+        expect(await nft.uri(0)).to.equal("https://prexis.io/metadata/0.json");
+        expect(await nft.uri(1)).to.equal("https://prexis.io/metadata/1.json");
+        expect(await nft.uri(2)).to.equal("https://prexis.io/metadata/2.json");
+      });
+    });
   });
 
   describe("ERC-20: mint", function () {

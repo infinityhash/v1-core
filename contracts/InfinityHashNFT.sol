@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "./InfinityHash.sol";
 
@@ -247,6 +248,18 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
         batches[_id].redeemed += _qty;
 
         emit Redeem(msg.sender, _id, _qty, total);
+    }
+
+    /**
+     * @notice Returns batch metadata URI
+     * @param _id The batch ID
+     * @return uri The batch metadata URI
+     */
+    function uri(uint256 _id) public view override returns (string memory) {
+        return
+            string(
+                abi.encodePacked(super.uri(_id), Strings.toString(_id), ".json")
+            );
     }
 
     /**
