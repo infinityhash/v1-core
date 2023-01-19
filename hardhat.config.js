@@ -40,7 +40,7 @@ module.exports = {
   etherscan: {
     apiKey: {
       goerli: process.env.ETHERSCAN_API,
-      ethereum: process.env.ETHERSCAN_API
+      mainnet: process.env.ETHERSCAN_API
     }
   },
 
