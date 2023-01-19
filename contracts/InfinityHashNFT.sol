@@ -36,7 +36,7 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     uint256 public constant BATCH_TIMELOCK = 60 * 60 * 24 * 30 * 3;
 
     /// @notice Redeemable amount of Infinity Hash tokens
-    uint256 public constant tokensToBeMinted = 1000;
+    uint256 public constant TOKENS_TO_BE_MINTED = 1000;
 
     struct Batch {
         uint256 price;
@@ -240,7 +240,7 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
 
         uint256 decimals = InfinityHash(token).decimals();
 
-        uint256 total = (_qty * tokensToBeMinted) * 10 ** decimals;
+        uint256 total = (_qty * TOKENS_TO_BE_MINTED) * 10 ** decimals;
 
         InfinityHash(token).mint(msg.sender, total);
 
