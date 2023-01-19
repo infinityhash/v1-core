@@ -22,7 +22,7 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     Counters.Counter public batchIdCounter;
 
     /// @notice Stablecoin token address constant
-    address public immutable stablecoin;
+    address public immutable STABLECOIN;
 
     /// @notice Infinity Hash token address
     /// @dev Only set once after deployment
@@ -30,10 +30,10 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
     address public token;
 
     /// @notice Batch total supply
-    uint256 public constant batchTotalSupply = 10000;
+    uint256 public constant BATCH_TOTAL_SUPPLY = 10000;
 
     /// @notice Batch redeem time lock (90 days)
-    uint256 public constant batchTimelock = 60 * 60 * 24 * 30 * 3;
+    uint256 public constant BATCH_TIMELOCK = 60 * 60 * 24 * 30 * 3;
 
     /// @notice Redeemable amount of Infinity Hash tokens
     uint256 public constant tokensToBeMinted = 1000;
@@ -114,12 +114,12 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
      */
     constructor(address _owner, address _stablecoin) ERC1155("") {
         _transferOwnership(_owner);
-        stablecoin = _stablecoin;
+        STABLECOIN = _stablecoin;
     }
 
     /**
      * @notice Set the ERC-20 token contract address
-     * @dev Only set once
+     * @dev Only set once by owner
      * @param _token The token contract address
      */
     function setTokenContract(address _token) external onlyOwner {
@@ -151,17 +151,17 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
         batchId = batchIdCounter.current();
         batchIdCounter.increment();
 
-        _mint(address(this), batchId, batchTotalSupply, "");
+        _mint(address(this), batchId, BATCH_TOTAL_SUPPLY, "");
 
         batches[batchId].price = _price;
-        batches[batchId].timelock = block.timestamp + batchTimelock;
-        batches[batchId].initialSupply = batchTotalSupply;
+        batches[batchId].timelock = block.timestamp + BATCH_TIMELOCK;
+        batches[batchId].initialSupply = BATCH_TOTAL_SUPPLY;
 
         emit Mint(
             msg.sender,
             batchId,
             _price,
-            batchTotalSupply,
+            BATCH_TOTAL_SUPPLY,
             batches[batchId].timelock
         );
     }
@@ -217,7 +217,7 @@ contract InfinityHashNFT is ERC1155, ERC1155Holder, Ownable, ERC1155Supply {
         uint256 price = batches[_id].price;
         uint256 total = price * _qty;
 
-        IERC20(stablecoin).safeTransferFrom(msg.sender, address(this), total);
+        IERC20(STABLECOIN).safeTransferFrom(msg.sender, address(this), total);
 
         _safeTransferFrom(address(this), msg.sender, _id, _qty, "");
 
