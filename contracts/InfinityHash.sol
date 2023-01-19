@@ -15,4 +15,8 @@ contract InfinityHash is ERC20{
         if (msg.sender != MINTER) revert NotMinter(MINTER, msg.sender);
         _mint(to, amount);
     }
+
+    function decimals() public view virtual override returns (uint8) {
+        return 0;
+    }
 }
